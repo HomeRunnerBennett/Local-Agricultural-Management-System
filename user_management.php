@@ -1,35 +1,44 @@
 <?php
 session_start();
-include 'config.php'; // Make sure this includes the connection to your database
+include 'config.php'; // Database connection
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = $_POST['username'];
     $password = $_POST['password'];
 
-    // Replace this with your actual query to validate the user
-    $stmt = $conn->prepare("SELECT user_id, username, password_hash, role FROM users WHERE username = ?");
+    // Prepare the SQL statement to fetch the user information from `useraccount`
+    $stmt = $conn->prepare("SELECT user_id, username, password, role FROM useraccount WHERE username = ?");
+
+    // Check if the statement preparation was successful
+    if (!$stmt) {
+        // Output error message for debugging if statement preparation failed
+        die("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+    }
+
+    // Bind parameters and execute the query
     $stmt->bind_param('s', $username);
     $stmt->execute();
     $stmt->store_result();
 
+    // Check if the user exists in the database
     if ($stmt->num_rows > 0) {
         $stmt->bind_result($user_id, $db_username, $db_password_hash, $role);
         $stmt->fetch();
 
         // Verify the password
         if (password_verify($password, $db_password_hash)) {
-            // Successful login
+            // Login successful, set session variables
             $_SESSION['user_id'] = $user_id;
             $_SESSION['username'] = $db_username;
             $_SESSION['role'] = $role;
-            
-            // Redirect to the original page the user was trying to access
+
+            // Redirect to the page user was trying to access
             if (isset($_SESSION['redirect_url'])) {
                 $redirect_url = $_SESSION['redirect_url'];
-                unset($_SESSION['redirect_url']); // Clear the session variable
+                unset($_SESSION['redirect_url']); // Clear the redirect URL
                 header("Location: $redirect_url");
             } else {
-                header("Location: index.php"); // Default redirect
+                header("Location: index.php"); // Default redirect if no previous URL
             }
             exit();
         } else {
